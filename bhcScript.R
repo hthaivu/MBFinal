@@ -2,6 +2,8 @@ library(tidyverse)
 library(ggplot2)
 library(GGally)
 library(lubridate)
+library(tufte)
+library(ggthemes)
 
 
 ####### Download all files and read from file
@@ -54,9 +56,12 @@ cdsHolder = bhcDataAll %>%
 cdsTimeSeries = bhcDataAll %>%
   filter(bankName %in% cdsHolder$bankName)
 
+# Barclays aliases
 barclays = bhcDataAll %>%
   filter(grepl('BARCLAYS', bankName))
+cdsTimeSeries = rbind(cdsTimeSeries,barclays)
 
+# JP Morgan
 jpMorgan = bhcDataAll %>%
   filter(grepl('JPMORGAN', bankName)) %>%
   group_by(bankName, date) %>%
@@ -67,14 +72,22 @@ jpMorgan = bhcDataAll %>%
 ggplot(jpMorgan) + 
   geom_line(aes(x=date,y=NetCDS))
 
-cdsTimeSeries = rbind(cdsTimeSeries,barclays)
 
-
+# Summary
 cdsSummary = cdsTimeSeries %>%
-  group_by(bankName,year) %>%
+  group_by(date) %>%
+  filter(cdsNetBuy!=0, quarter %in% c(1,3))%>%
   summarise(count = n())
 
-####### Analysis 
+ggplot(cdsSummary) + 
+  geom_line(aes(x=date,y=count), color="dark blue") +
+  labs(x = "Date", y = "Number of Banks", title = "Banks With Non-Zero CDS Balance", subtitle = "Period 2006-2017") + 
+  scale_y_continuous(breaks=c(20,22,24,26,28,30,32,34)) + 
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") + 
+  theme_bw()
+
+
+####### Pre-Analysis 
 
 test =read.table("data/bhcf1703.txt",sep="^", nrows=1300, comment.char="", header=TRUE, quote="", na.strings="--------", as.is=TRUE)
 
