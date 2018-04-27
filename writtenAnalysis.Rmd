@@ -1,0 +1,123 @@
+---
+title: "CDS Analysis"
+author: "Hoang Anh Thai Vu & Charlotte Giang"
+date: "April 26, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(tufte)
+library(ggthemes)
+knitr::opts_chunk$set(tidy = FALSE, message=FALSE, cache.extra = packageVersion('tufte'))
+options(htmltools.dir.version = FALSE)
+```
+
+# Getting Data
+
+```{r cache=TRUE}
+cdsTimeSeries = read_csv("data/cdsTimeSeries.csv")
+```
+
+This data set contains information about any Bank Holding Company (BHC) that has ever bought/sold CDS since 2006. Some of them are not currently owning any credit derivatives.
+
+The master data contains thousands of variables, but we only select relevant ones to look at.
+
+From CDS Bought/Sold we calculate CDS Net Bought. 
+
+We also filtered out the top 20 largest bank holding companies in the US for a more in-depth analysis
+
+```{r}
+# getting only top 10
+
+top20Banks =cdsTimeSeries %>%
+  group_by(bankName)%>%
+  summarise(meanAssets = mean(totalAssets)) %>%
+  arrange(desc(meanAssets)) %>%
+  head(20)
+
+top20BankCDS = cdsTimeSeries %>%
+  filter(bankName %in% top20Banks$bankName)
+```
+
+
+# First look at the data
+
+There are only 5% of all bank holding companies that hold CDS.
+
+For banks that hold CDS, there is a positive correlation between CDS Net Bought and Total Assets. This is pretty straightforward. The more loans you have, the more you need to insure. Also, bigger banks have more capital to afford more CDS.
+
+>>>> Please elaborate more!
+
+```{r}
+# TODO: Include a graph of CDS against Assets, you coud do log/log plot to make it clearer
+```
+
+Banks issue many kinds of loans, but CDS are often used to hedge default risk from Commercial & Industrial (C&I) loans. Here we take a look at the relationship between CDS positions and C&I loans. 
+
+```{r}
+ggplot(top20BankCDS,aes(x=bankName, y=loansCI_US/totalLoans)) +
+  geom_boxplot() +
+  coord_flip()
+
+#TODO: OPTIONAL -- build a lm model, shouldn't be too hard
+```
+
+
+>>>>> More preliminary analysis on the data probably, but you get the idea
+
+
+
+# CDS and C&I Loans analysis
+
+Banks vary in size and loans portfolio, and there are some correlation between size and CDS position. Thus, we normalize by creating several metrics:
+
+```
+  leverage = totalLoans/totalAssets
+
+  loansCI_to_totalAssets = loansCI_US/totalAssets
+
+  loansCI_to_totalLoans = loansCI_US/totalLoans
+
+  netCDS_to_loansCI = cdsNetBuy/loansCI_US
+
+```
+
+Banks buy/sell CDS mainly for two activities: dealer activities and hedging activities. Our key question: how much CDS does bank use for hedging? 
+
+Assuming that banks use CDS to hedge risks, we should observe a positive correlation between leverage (debt/asset ratio) and CDS. One step further, since C&I is mainly the cause behind CDS hedging, we should see a positive correlation between CDS net position (adjusted for total loans size, so we use) and C&I exposure (loansCI_to_totalLoans ratio).
+
+
+>>>More here
+
+Instead, interesting things we see:
+
+```{r}
+ggplot(top20BankCDS,aes(x=log(loansCI_to_totalAssets), y=log(cdsNetBuy/totalAssets)))+
+  geom_point(alpha = 0.75) +
+  geom_smooth(method='lm',formula=y~x)
+```
+
+>>>> Some additional interpretation, maybe include some of the stuffs I have in my script
+
+To formalize the analysis, we look at the statistical analysis of this:
+
+```{r}
+cdsLoansCI = lm(cdsNetBuy ~ loansCI_US + totalAssets , data = cdsTimeSeries, na.action = na.exclude)
+summary(cdsLoansCI)
+```
+
+It seems that the inversed is true. In short, controlling for the assets size, the more C&I loan a bank has, the less CDS bought. 
+
+
+>>>>>>>TALK MUCH MORE!!!!!!!
+
+
+
+
+
+
+
